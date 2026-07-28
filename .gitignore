@@ -67,3 +67,8 @@ Thumbs.db
 
 *.tmp
 *.bak
+
+# SSH Keys
+keys/
+*.pem
+*.pub
