@@ -7,7 +7,6 @@ dnf install -y \
     docker \
     git \
     unzip \
-    curl \
     wget
 
 systemctl enable docker

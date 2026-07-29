@@ -23,7 +23,7 @@ data "aws_ami" "amazon_linux" {
 resource "aws_instance" "app_server" {
 
   ami           = data.aws_ami.amazon_linux.id
-  instance_type = "t2.micro"
+  instance_type = "t3.micro"
 
   subnet_id = aws_subnet.public.id
 
