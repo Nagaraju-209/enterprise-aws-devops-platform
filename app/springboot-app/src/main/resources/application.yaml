@@ -1,3 +1,18 @@
+server:
+  port: 8083
+
 spring:
   application:
-    name: springboot-app
+    name: enterprise-aws-devops-platform
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+  endpoint:
+    health:
+      show-details: always
+
+  
