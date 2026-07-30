@@ -296,6 +296,7 @@ This exercise demonstrates troubleshooting of cloud-init logs and package depend
 
 ---
 
+
 # 📸 Screenshots
 
 ## Module 3 – AWS Networking
