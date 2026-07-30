@@ -15,7 +15,7 @@ public class SpringbootAppApplication {
 
     @GetMapping("/")
     public String home() {
-        return "Enterprise AWS DevOps Platform";
+        return "Enterprise AWS DevOps Platform - GitHub Actions CI/CD Verified";
     }
 
     @GetMapping("/health")
@@ -25,6 +25,6 @@ public class SpringbootAppApplication {
 
     @GetMapping("/version")
     public String version() {
-        return "Version 1.0.0";
+        return "Version 1.1 - GitHub Actions CI/CD";
     }
 }
