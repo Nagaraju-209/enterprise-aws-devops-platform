@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-
+    
     runs-on: ubuntu-latest
 
     defaults:
@@ -101,32 +101,74 @@ jobs:
         run: |
           ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << EOF
 
-          echo "===== Deploying Application ====="
+          set -e
 
+          echo "======================================"
+          echo "Starting Deployment"
+          echo "======================================"
+
+          echo "Logging into Amazon ECR..."
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
           docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
 
+          echo "Pulling latest image..."
           docker pull ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ env.SHORT_SHA }}
 
+          echo "Stopping existing container..."
           docker stop enterprise-app || true
 
+          echo "Removing existing container..."
           docker rm enterprise-app || true
 
+          echo "Starting new container..."
           docker run -d \
             --name enterprise-app \
-            -p 8083:8083 \
             --restart unless-stopped \
+            -p 8083:8083 \
             ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ env.SHORT_SHA }}
 
+          echo ""
+          echo "========== Running Containers =========="
           docker ps
 
-          EOF
+          echo ""
+          echo "========== Available Images =========="
+          docker images | head -5
 
-      - name: Verify Deployment
-        run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
-          "docker ps"
-      - name: Application Health Check
-        run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
-          "curl -f http://${{ secrets.EC2_HOST }}:8083/health"
+          echo ""
+          echo "========== Waiting for Application =========="
+
+          for i in {1..10}; do
+
+            if curl -f http://${{ secrets.EC2_HOST }}:8083/health; then
+              echo ""
+              echo "Application is healthy."
+              break
+            fi
+
+            echo "Waiting... Attempt \$i/10"  
+            sleep 5
+
+            if [ \$i -eq 10 ]; then
+              echo ""
+              echo "Application failed health check."
+              exit 1
+            fi
+
+          done
+
+          echo ""
+          echo "========== Deployment Information =========="
+          hostname
+          date
+
+          echo ""
+          docker ps
+
+          echo ""
+          docker images | head -5
+
+          echo ""
+          echo "Deployment completed successfully."
+
+          EOF
