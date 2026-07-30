@@ -1,0 +1,3 @@
+concurrency:
+  group: production-deployment-${{ github.ref }}
+  cancel-in-progress: true
