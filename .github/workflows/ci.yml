@@ -1,6 +1,4 @@
-concurrency:
-  group: production-deployment-${{ github.ref }}
-  cancel-in-progress: true
+
 
 
 name: Spring Boot CI/CD
@@ -11,6 +9,13 @@ on:
       - feature/github-actions-cicd
 
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
