@@ -1,3 +1,8 @@
+concurrency:
+  group: production-deployment-${{ github.ref }}
+  cancel-in-progress: true
+
+
 name: Spring Boot CI/CD
 
 on:
@@ -168,5 +173,23 @@ jobs:
 
           echo ""
           echo "Deployment completed successfully."
+
+          echo "Application deployed successfully."
+
+          echo "Cleaning up unused Docker resources..."
+
+          docker container prune -f
+
+          docker image prune -f
+
+          docker builder prune -f
+
+          echo "Docker disk usage:"
+
+          docker system df
+
+          echo "Filesystem usage:"
+
+          df -h
 
           EOF
