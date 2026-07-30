@@ -198,3 +198,44 @@ jobs:
           df -h
 
           EOF
+
+      - name: Generate Workflow Summary
+        run: |
+          {
+          echo "# 🚀 Enterprise AWS DevOps Platform Deployment"
+          echo ""
+          echo "## Deployment Status"
+          echo "✅ Success"
+          echo ""
+          echo "## Repository"
+          echo "${{ github.repository }}"
+          echo ""
+          echo "## Branch"
+          echo "${{ github.ref_name }}"
+          echo ""
+          echo "## Commit SHA"
+          echo "${{ env.SHORT_SHA }}"
+          echo ""
+          echo "## Build Number"
+          echo "${{ github.run_number }}"
+          echo ""
+          echo "## Docker Image Tags"
+          echo "- latest"
+          echo "- build-${{ github.run_number }}"
+          echo "- ${{ env.SHORT_SHA }}"
+          echo ""
+          echo "## AWS Region"
+          echo "${{ secrets.AWS_REGION }}"
+          echo ""
+          echo "## Deployment Target"
+          echo "Amazon EC2"
+          echo ""
+          echo "## Container"
+          echo "enterprise-app"
+          echo ""
+          echo "## Application Port"
+          echo "8083"
+          echo ""
+          echo "## Deployment Time (UTC)"
+          date -u
+          } >> $GITHUB_STEP_SUMMARY
