@@ -87,8 +87,8 @@ jobs:
           mkdir -p ~/.ssh
 
           cat > ~/.ssh/id_rsa << 'EOF'
-      ${{ secrets.EC2_SSH_KEY }}
-      EOF
+          ${{ secrets.EC2_SSH_KEY }}
+          EOF
 
           chmod 600 ~/.ssh/id_rsa
 
@@ -96,7 +96,7 @@ jobs:
           head -n 2 ~/.ssh/id_rsa
 
           ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
-          
+
       - name: Test SSH Connection
         run: |
           ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
