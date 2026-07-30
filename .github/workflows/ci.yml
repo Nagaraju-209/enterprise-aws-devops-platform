@@ -129,4 +129,4 @@ jobs:
       - name: Application Health Check
         run: |
           ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
-          "curl -f http://localhost:8083/health"
+          "curl -f http://${{ secrets.EC2_HOST }}:8083/health"
