@@ -31,18 +31,114 @@ The platform provisions cloud infrastructure, builds a Spring Boot application, 
 - Docker Cleanup Automation
 - Production-inspired Deployment Workflow
 
-## 🌟 Project Highlights
+## 🏗️ Architecture
 
-- Automated Infrastructure Provisioning using Terraform
-- Secure AWS Networking with VPC
-- Spring Boot REST API
-- Docker Multi-stage Builds
-- Amazon Elastic Container Registry (ECR)
-- GitHub Actions CI/CD Pipeline
-- Automatic Deployment to Amazon EC2
-- Health Check Validation
-- Docker Cleanup Automation
-- Production-inspired Deployment Workflow
+![Architecture](diagrams/architecture.png)
+
+### Architecture Overview
+
+The platform provisions AWS infrastructure using Terraform, builds and packages a Spring Boot application with Maven and Docker, stores container images in Amazon ECR, and automatically deploys them to an EC2 instance through GitHub Actions. Every deployment concludes with health checks and automated Docker cleanup.
+
+## 🛠️ Technology Stack
+
+| Category | Technology |
+|----------|------------|
+| Language | Java 17 |
+| Framework | Spring Boot 3 |
+| Build Tool | Maven |
+| Containerization | Docker |
+| Cloud Provider | AWS |
+| Infrastructure as Code | Terraform |
+| CI/CD | GitHub Actions |
+| Container Registry | Amazon ECR |
+| Operating System | Amazon Linux 2023 |
+| Version Control | Git & GitHub |
+
+## ☁️ AWS Services Used
+
+- Amazon EC2
+- Amazon ECR
+- Amazon VPC
+- Internet Gateway
+- NAT Gateway
+- Route Tables
+- Security Groups
+- IAM
+- Elastic IP
+
+## 🔗 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | / | Welcome endpoint |
+| GET | /health | Health check |
+| GET | /version | Application version |
+| GET | /api/employees | List employees |
+| POST | /api/employees | Create employee |
+
+## 🚀 Local Setup
+
+```bash
+git clone https://github.com/Nagaraju-209/enterprise-aws-devops-platform.git
+
+cd enterprise-aws-devops-platform
+
+cd app/springboot-app
+
+mvn clean package
+
+java -jar target/*.jar
+```
+
+## 🚀 Deployment
+
+Every push to the `feature/github-actions-cicd` branch triggers the GitHub Actions workflow.
+
+
+The pipeline automatically:
+
+1. Builds the Spring Boot application.
+2. Creates a Docker image.
+3. Pushes the image to Amazon ECR.
+4. Connects to the EC2 instance via SSH.
+5. Pulls the latest image.
+6. Deploys the updated container.
+7. Performs a health check.
+8. Cleans up unused Docker resources.
+9. Publishes a deployment summary.
+
+## 📸 Screenshots
+
+### GitHub Actions Pipeline
+
+![Pipeline](screenshots/github-actions.png)
+
+### Amazon EC2
+
+![EC2](screenshots/ec2.png)
+
+### Amazon ECR
+
+![ECR](screenshots/ecr.png)
+
+### Application Running
+
+![Application](screenshots/application.png)
+
+## ✨ Features
+
+- Infrastructure provisioning using Terraform
+- Secure AWS networking
+- Dockerized Spring Boot application
+- Automated CI/CD with GitHub Actions
+- Amazon ECR integration
+- Automated EC2 deployment
+- Health check validation
+- Docker cleanup automation
+- Immutable Docker image tagging
+- Workflow summaries
+
+
 
 ## 📚 Documentation
 
