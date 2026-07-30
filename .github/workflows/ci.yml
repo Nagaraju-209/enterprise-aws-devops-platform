@@ -82,16 +82,23 @@ jobs:
           sudo apt-get install -y openssh-client
 
       - name: Configure SSH
+        shell: bash
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+
+          cat > ~/.ssh/id_rsa << 'EOF'
+      ${{ secrets.EC2_SSH_KEY }}
+      EOF
+
           chmod 600 ~/.ssh/id_rsa
 
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          echo "Checking private key..."
+          head -n 2 ~/.ssh/id_rsa
 
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+          
       - name: Test SSH Connection
         run: |
           ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
           "echo 'Connected Successfully'; hostname"
-          
-                              
+
