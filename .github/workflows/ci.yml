@@ -97,8 +97,36 @@ jobs:
 
           ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Test SSH Connection
+      - name: Deploy to EC2
+        run: |
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << EOF
+
+          echo "===== Deploying Application ====="
+
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
+          docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+
+          docker pull ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ env.SHORT_SHA }}
+
+          docker stop enterprise-app || true
+
+          docker rm enterprise-app || true
+
+          docker run -d \
+            --name enterprise-app \
+            -p 8083:8083 \
+            --restart unless-stopped \
+            ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ env.SHORT_SHA }}
+
+          docker ps
+
+          EOF
+
+      - name: Verify Deployment
         run: |
           ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
-          "echo 'Connected Successfully'; hostname"
-
+          "docker ps"
+      - name: Application Health Check
+        run: |
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
+          "curl -f http://localhost:8083/health"
