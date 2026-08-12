@@ -47,3 +47,8 @@ resource "aws_instance" "app_server" {
   }
 }
 
+resource "aws_lb_target_group_attachment" "springboot_attachment" {
+  target_group_arn = aws_lb_target_group.springboot_tg.arn
+  target_id        = aws_instance.app_server.id
+  port             = 8083
+}

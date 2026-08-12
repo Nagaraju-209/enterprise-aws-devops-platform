@@ -12,7 +12,7 @@ resource "aws_lb" "application_lb" {
 
   subnets = [
     aws_subnet.public.id,
-    aws_subnet.private.id
+    aws_subnet.public_subnet_b.id
   ]
 
   enable_deletion_protection = false
