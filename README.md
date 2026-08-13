@@ -149,6 +149,7 @@ The pipeline automatically:
 - [AWS Services](docs/aws-services.md)
 - [Project Structure](docs/project-structure.md)
 - [Pipeline Optimization](docs/pipeline-optimization.md)
+- [ALB Architecture](docs/alb-architecture.md)
 
 ## 💼 Skills Demonstrated
 

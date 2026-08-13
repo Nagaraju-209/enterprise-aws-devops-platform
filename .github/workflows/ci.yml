@@ -1,12 +1,10 @@
-
-
-
 name: Spring Boot CI/CD
 
 on:
   push:
     branches:
       - feature/github-actions-cicd
+      - feature/application-load-balancer
 
   workflow_dispatch:
 
@@ -19,7 +17,7 @@ concurrency:
 
 jobs:
   build:
-    
+
     runs-on: ubuntu-latest
 
     defaults:
@@ -28,8 +26,17 @@ jobs:
 
     steps:
 
+      # ============================================================
+      # CHECKOUT
+      # ============================================================
+
       - name: Checkout Source
         uses: actions/checkout@v4
+
+
+      # ============================================================
+      # JAVA
+      # ============================================================
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -37,17 +44,32 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+
+      # ============================================================
+      # MAVEN BUILD
+      # ============================================================
+
       - name: Grant Execute Permission
         run: chmod +x mvnw
 
       - name: Build Spring Boot
         run: ./mvnw clean package -DskipTests
 
+
+      # ============================================================
+      # ARTIFACT
+      # ============================================================
+
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: springboot-jar
           path: app/springboot-app/target/*.jar
+
+
+      # ============================================================
+      # AWS
+      # ============================================================
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -56,9 +78,19 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+
+      # ============================================================
+      # ECR LOGIN
+      # ============================================================
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+
+
+      # ============================================================
+      # IMAGE VERSIONING
+      # ============================================================
 
       - name: Generate Image Tags
         id: vars
@@ -66,8 +98,18 @@ jobs:
           echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
           echo "BUILD_TAG=build-${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
 
+
+      # ============================================================
+      # DOCKER BUILDX
+      # ============================================================
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+
+      # ============================================================
+      # BUILD + PUSH
+      # ============================================================
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
@@ -84,10 +126,20 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+
+      # ============================================================
+      # SSH CLIENT
+      # ============================================================
+
       - name: Install SSH Client
         run: |
           sudo apt-get update
           sudo apt-get install -y openssh-client
+
+
+      # ============================================================
+      # SSH CONFIGURATION
+      # ============================================================
 
       - name: Configure SSH
         shell: bash
@@ -100,10 +152,14 @@ jobs:
 
           chmod 600 ~/.ssh/id_rsa
 
-          echo "Checking private key..."
-          head -n 2 ~/.ssh/id_rsa
+          test -s ~/.ssh/id_rsa
 
           ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+
+      # ============================================================
+      # DEPLOY TO EC2
+      # ============================================================
 
       - name: Deploy to EC2
         run: |
@@ -115,20 +171,34 @@ jobs:
           echo "Starting Deployment"
           echo "======================================"
 
-          echo "Logging into Amazon ECR..."
-          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
-          docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+          echo ""
+          echo "========== ECR LOGIN =========="
 
-          echo "Pulling latest image..."
-          docker pull ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ env.SHORT_SHA }}
+          aws ecr get-login-password \
+            --region ${{ secrets.AWS_REGION }} | \
+          docker login \
+            --username AWS \
+            --password-stdin ${{ secrets.ECR_REGISTRY }}
 
-          echo "Stopping existing container..."
+          echo ""
+          echo "========== PULLING IMAGE =========="
+
+          docker pull \
+            ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ env.SHORT_SHA }}
+
+          echo ""
+          echo "========== STOPPING OLD CONTAINER =========="
+
           docker stop enterprise-app || true
 
-          echo "Removing existing container..."
+          echo ""
+          echo "========== REMOVING OLD CONTAINER =========="
+
           docker rm enterprise-app || true
 
-          echo "Starting new container..."
+          echo ""
+          echo "========== STARTING NEW CONTAINER =========="
+
           docker run -d \
             --name enterprise-app \
             --restart unless-stopped \
@@ -136,37 +206,37 @@ jobs:
             ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ env.SHORT_SHA }}
 
           echo ""
-          echo "========== Running Containers =========="
+          echo "========== RUNNING CONTAINERS =========="
+
           docker ps
 
           echo ""
-          echo "========== Available Images =========="
-          docker images | head -5
+          echo "========== WAITING FOR APPLICATION =========="
 
-          echo ""
-          echo "========== Waiting for Application =========="
+          for i in {1..12}; do
 
-          for i in {1..10}; do
-
-            if curl -f http://${{ secrets.EC2_HOST }}:8083/health; then
+            if curl -fsS http://localhost:8083/health; then
               echo ""
               echo "Application is healthy."
               break
             fi
 
-            echo "Waiting... Attempt \$i/10"  
+            echo "Waiting for application... Attempt \$i/12"
+
             sleep 5
 
-            if [ \$i -eq 10 ]; then
+            if [ \$i -eq 12 ]; then
               echo ""
               echo "Application failed health check."
+              docker logs enterprise-app
               exit 1
             fi
 
           done
 
           echo ""
-          echo "========== Deployment Information =========="
+          echo "========== DEPLOYMENT INFORMATION =========="
+
           hostname
           date
 
@@ -177,27 +247,78 @@ jobs:
           docker images | head -5
 
           echo ""
-          echo "Deployment completed successfully."
+          echo "Deployment to EC2 completed successfully."
 
-          echo "Application deployed successfully."
-
-          echo "Cleaning up unused Docker resources..."
+          echo ""
+          echo "========== DOCKER CLEANUP =========="
 
           docker container prune -f
-
           docker image prune -f
-
           docker builder prune -f
 
-          echo "Docker disk usage:"
+          echo ""
+          echo "========== DOCKER DISK USAGE =========="
 
           docker system df
 
-          echo "Filesystem usage:"
+          echo ""
+          echo "========== FILESYSTEM USAGE =========="
 
           df -h
 
           EOF
+
+
+      # ============================================================
+      # ALB VALIDATION
+      # ============================================================
+
+      - name: Validate Application Through ALB
+        shell: bash
+        run: |
+
+          echo "======================================"
+          echo "Validating Application Through ALB"
+          echo "======================================"
+
+          ALB_URL="http://${{ secrets.ALB_DNS_NAME }}/health"
+
+          echo "ALB Health URL:"
+          echo "$ALB_URL"
+
+          for i in {1..12}; do
+
+            echo ""
+            echo "ALB health check attempt $i/12"
+
+            if curl -fsS --max-time 10 "$ALB_URL"; then
+
+              echo ""
+              echo "======================================"
+              echo "ALB HEALTH CHECK PASSED"
+              echo "======================================"
+
+              exit 0
+            fi
+
+            echo "ALB target is not ready yet."
+            echo "Waiting 10 seconds..."
+
+            sleep 10
+
+          done
+
+          echo ""
+          echo "======================================"
+          echo "ALB HEALTH CHECK FAILED"
+          echo "======================================"
+
+          exit 1
+
+
+      # ============================================================
+      # WORKFLOW SUMMARY
+      # ============================================================
 
       - name: Generate Workflow Summary
         run: |
@@ -230,10 +351,19 @@ jobs:
           echo "## Deployment Target"
           echo "Amazon EC2"
           echo ""
+          echo "## Load Balancer"
+          echo "Application Load Balancer"
+          echo ""
           echo "## Container"
           echo "enterprise-app"
           echo ""
           echo "## Application Port"
+          echo "8083"
+          echo ""
+          echo "## ALB Listener"
+          echo "HTTP :80"
+          echo ""
+          echo "## ALB Target Port"
           echo "8083"
           echo ""
           echo "## Deployment Time (UTC)"
