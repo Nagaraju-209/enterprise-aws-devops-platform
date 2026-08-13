@@ -20,6 +20,14 @@ resource "aws_cloudwatch_metric_alarm" "ec2_cpu_high" {
 
   treat_missing_data = "notBreaching"
 
+  alarm_actions = [
+    aws_sns_topic.monitoring_alerts.arn
+  ]
+
+  ok_actions = [
+    aws_sns_topic.monitoring_alerts.arn
+  ]
+
   tags = {
     Name        = "enterprise-devops-ec2-high-cpu"
     Environment = "Development"
