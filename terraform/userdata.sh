@@ -39,15 +39,19 @@ cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<'EOF'
     "metrics_collection_interval": 60,
     "run_as_user": "root"
   },
+
   "metrics": {
     "namespace": "EnterpriseAWS/EC2",
+
     "metrics_collected": {
+
       "mem": {
         "measurement": [
           "mem_used_percent"
         ],
         "metrics_collection_interval": 60
       },
+
       "disk": {
         "measurement": [
           "used_percent"
@@ -55,6 +59,21 @@ cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<'EOF'
         "metrics_collection_interval": 60,
         "resources": [
           "/"
+        ]
+      }
+    }
+  },
+
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/lib/docker/containers/*/*-json.log",
+            "log_group_name": "/enterprise-aws-devops-platform/application",
+            "log_stream_name": "{instance_id}/docker",
+            "timezone": "UTC"
+          }
         ]
       }
     }
