@@ -37,3 +37,8 @@ output "ec2_public_dns" {
   description = "EC2 Public DNS"
   value       = aws_instance.app_server.public_dns
 }
+
+output "alb_dns_name" {
+  description = "DNS name of the Application Load Balancer"
+  value       = aws_lb.application_lb.dns_name
+}
