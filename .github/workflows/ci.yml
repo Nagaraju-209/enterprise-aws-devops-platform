@@ -5,6 +5,7 @@ on:
     branches:
       - feature/github-actions-cicd
       - feature/application-load-balancer
+      - feature/cloudwatch-monitoring
 
   workflow_dispatch:
 
