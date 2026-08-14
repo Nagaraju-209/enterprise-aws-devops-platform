@@ -30,7 +30,8 @@ resource "aws_instance" "app_server" {
   subnet_id = aws_subnet.public.id
 
   vpc_security_group_ids = [
-    aws_security_group.public_sg.id
+    aws_security_group.public_sg.id,
+    aws_security_group.app_sg.id
   ]
 
   key_name = aws_key_pair.main.key_name
