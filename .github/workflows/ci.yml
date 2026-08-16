@@ -5,6 +5,7 @@ on:
     branches:
       - feature/github-actions-cicd
       - feature/application-load-balancer
+      - feature/cloudwatch-monitoring
 
   workflow_dispatch:
 
@@ -128,145 +129,99 @@ jobs:
 
 
       # ============================================================
-      # SSH CLIENT
+      # DEPLOY TO EC2 USING AWS SYSTEMS MANAGER
       # ============================================================
 
-      - name: Install SSH Client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openssh-client
-
-
-      # ============================================================
-      # SSH CONFIGURATION
-      # ============================================================
-
-      - name: Configure SSH
+      - name: Deploy to EC2 via SSM
         shell: bash
         run: |
-          mkdir -p ~/.ssh
-
-          cat > ~/.ssh/id_rsa << 'EOF'
-          ${{ secrets.EC2_SSH_KEY }}
-          EOF
-
-          chmod 600 ~/.ssh/id_rsa
-
-          test -s ~/.ssh/id_rsa
-
-          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
-
-
-      # ============================================================
-      # DEPLOY TO EC2
-      # ============================================================
-
-      - name: Deploy to EC2
-        run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << EOF
-
-          set -e
 
           echo "======================================"
-          echo "Starting Deployment"
+          echo "Starting SSM Deployment"
           echo "======================================"
 
-          echo ""
-          echo "========== ECR LOGIN =========="
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=[
+              "set -e",
+              "echo === ECR LOGIN ===",
+              "aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}",
+              "echo === PULLING IMAGE ===",
+              "docker pull ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ env.SHORT_SHA }}",
+              "echo === STOPPING OLD CONTAINER ===",
+              "docker stop enterprise-app || true",
+              "echo === REMOVING OLD CONTAINER ===",
+              "docker rm enterprise-app || true",
+              "echo === STARTING NEW CONTAINER ===",
+              "docker run -d --name enterprise-app --restart unless-stopped -p 8083:8083 ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ env.SHORT_SHA }}",
+              "echo === CONTAINER STATUS ===",
+              "docker ps",
+              "echo === APPLICATION HEALTH CHECK ===",
+              "for i in $(seq 1 12); do if curl -fsS http://localhost:8083/health; then echo Application is healthy.; exit 0; fi; echo Waiting for application... Attempt $i/12; sleep 5; done",
+              "echo Application failed health check.",
+              "docker logs enterprise-app",
+              "exit 1"
+            ]' \
+            --region "${{ secrets.AWS_REGION }}" \
+            --query 'Command.CommandId' \
+            --output text)
 
-          aws ecr get-login-password \
-            --region ${{ secrets.AWS_REGION }} | \
-          docker login \
-            --username AWS \
-            --password-stdin ${{ secrets.ECR_REGISTRY }}
+          echo "SSM Command ID: $COMMAND_ID"
 
-          echo ""
-          echo "========== PULLING IMAGE =========="
+          echo "======================================"
+          echo "Waiting for SSM deployment"
+          echo "======================================"
 
-          docker pull \
-            ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ env.SHORT_SHA }}
+          for i in {1..30}; do
 
-          echo ""
-          echo "========== STOPPING OLD CONTAINER =========="
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+              --region "${{ secrets.AWS_REGION }}" \
+              --query 'Status' \
+              --output text)
 
-          docker stop enterprise-app || true
+            echo "SSM status: $STATUS"
 
-          echo ""
-          echo "========== REMOVING OLD CONTAINER =========="
+            case "$STATUS" in
+              Success)
+                echo "======================================"
+                echo "SSM DEPLOYMENT SUCCESSFUL"
+                echo "======================================"
 
-          docker rm enterprise-app || true
+                aws ssm get-command-invocation \
+                  --command-id "$COMMAND_ID" \
+                  --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+                  --region "${{ secrets.AWS_REGION }}" \
+                  --query 'StandardOutputContent' \
+                  --output text
 
-          echo ""
-          echo "========== STARTING NEW CONTAINER =========="
+                exit 0
+                ;;
 
-          docker run -d \
-            --name enterprise-app \
-            --restart unless-stopped \
-            -p 8083:8083 \
-            ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ env.SHORT_SHA }}
+              Failed|Cancelled|TimedOut|Undeliverable)
+                echo "======================================"
+                echo "SSM DEPLOYMENT FAILED"
+                echo "======================================"
 
-          echo ""
-          echo "========== RUNNING CONTAINERS =========="
+                aws ssm get-command-invocation \
+                  --command-id "$COMMAND_ID" \
+                  --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+                  --region "${{ secrets.AWS_REGION }}" \
+                  --query '[StatusDetails,StandardOutputContent,StandardErrorContent]' \
+                  --output text
 
-          docker ps
-
-          echo ""
-          echo "========== WAITING FOR APPLICATION =========="
-
-          for i in {1..12}; do
-
-            if curl -fsS http://localhost:8083/health; then
-              echo ""
-              echo "Application is healthy."
-              break
-            fi
-
-            echo "Waiting for application... Attempt \$i/12"
+                exit 1
+                ;;
+            esac
 
             sleep 5
 
-            if [ \$i -eq 12 ]; then
-              echo ""
-              echo "Application failed health check."
-              docker logs enterprise-app
-              exit 1
-            fi
-
           done
 
-          echo ""
-          echo "========== DEPLOYMENT INFORMATION =========="
-
-          hostname
-          date
-
-          echo ""
-          docker ps
-
-          echo ""
-          docker images | head -5
-
-          echo ""
-          echo "Deployment to EC2 completed successfully."
-
-          echo ""
-          echo "========== DOCKER CLEANUP =========="
-
-          docker container prune -f
-          docker image prune -f
-          docker builder prune -f
-
-          echo ""
-          echo "========== DOCKER DISK USAGE =========="
-
-          docker system df
-
-          echo ""
-          echo "========== FILESYSTEM USAGE =========="
-
-          df -h
-
-          EOF
+          echo "SSM deployment timed out."
+          exit 1
 
 
       # ============================================================

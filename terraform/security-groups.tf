@@ -12,48 +12,6 @@ resource "aws_security_group" "public_sg" {
   }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "public_ssh" {
-
-  security_group_id = aws_security_group.public_sg.id
-
-  cidr_ipv4 = "0.0.0.0/0"
-
-  from_port = 22
-  to_port   = 22
-
-  ip_protocol = "tcp"
-
-  description = "Allow SSH"
-}
-
-resource "aws_vpc_security_group_ingress_rule" "public_http" {
-
-  security_group_id = aws_security_group.public_sg.id
-
-  cidr_ipv4 = "0.0.0.0/0"
-
-  from_port = 80
-  to_port   = 80
-
-  ip_protocol = "tcp"
-
-  description = "Allow HTTP"
-}
-
-resource "aws_vpc_security_group_ingress_rule" "public_https" {
-
-  security_group_id = aws_security_group.public_sg.id
-
-  cidr_ipv4 = "0.0.0.0/0"
-
-  from_port = 443
-  to_port   = 443
-
-  ip_protocol = "tcp"
-
-  description = "Allow HTTPS"
-}
-
 resource "aws_vpc_security_group_egress_rule" "public_outbound" {
 
   security_group_id = aws_security_group.public_sg.id
@@ -104,4 +62,3 @@ resource "aws_vpc_security_group_egress_rule" "app_outbound" {
 
   description = "Allow all outbound traffic"
 }
-
