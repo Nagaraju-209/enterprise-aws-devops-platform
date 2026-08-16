@@ -3,6 +3,7 @@ name: Spring Boot CI/CD
 on:
   push:
     branches:
+      - main
       - feature/github-actions-cicd
       - feature/application-load-balancer
       - feature/cloudwatch-monitoring
